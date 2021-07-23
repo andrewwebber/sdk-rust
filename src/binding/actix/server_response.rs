@@ -10,12 +10,9 @@ use crate::{
     },
     str_to_header_value,
 };
-use actix_web::dev::HttpResponseBuilder;
 use actix_web::http::StatusCode;
-use actix_web::HttpResponse;
-use async_trait::async_trait;
-use futures::future::LocalBoxFuture;
-use futures::FutureExt;
+use actix_web::HttpResponseBuilder;
+use actix_web::{HttpRequest, HttpResponse};
 
 /// Wrapper for [`HttpResponseBuilder`] that implements [`StructuredSerializer`] and [`BinarySerializer`].
 pub struct HttpResponseSerializer {
@@ -31,19 +28,19 @@ impl HttpResponseSerializer {
 impl BinarySerializer<HttpResponse> for HttpResponseSerializer {
     fn set_spec_version(mut self, spec_version: SpecVersion) -> Result<Self> {
         self.builder
-            .set_header(SPEC_VERSION_HEADER, str_to_header_value!(spec_version)?);
+            .insert_header((SPEC_VERSION_HEADER, str_to_header_value!(spec_version)?));
         Ok(self)
     }
 
     fn set_attribute(mut self, name: &str, value: MessageAttributeValue) -> Result<Self> {
         self.builder
-            .set_header(&header_prefix(name), str_to_header_value!(value)?);
+            .insert_header((header_prefix(name), str_to_header_value!(value)?));
         Ok(self)
     }
 
     fn set_extension(mut self, name: &str, value: MessageAttributeValue) -> Result<Self> {
         self.builder
-            .set_header(&header_prefix(name), str_to_header_value!(value)?);
+            .insert_header((header_prefix(name), str_to_header_value!(value)?));
         Ok(self)
     }
 
@@ -60,16 +57,16 @@ impl StructuredSerializer<HttpResponse> for HttpResponseSerializer {
     fn set_structured_event(mut self, bytes: Vec<u8>) -> Result<HttpResponse> {
         Ok(self
             .builder
-            .set_header(
+            .insert_header((
                 actix_web::http::header::CONTENT_TYPE,
                 CLOUDEVENTS_JSON_HEADER,
-            )
+            ))
             .body(bytes))
     }
 }
 
 /// Method to fill an [`HttpResponseBuilder`] with an [`Event`].
-pub async fn event_to_response(
+pub fn event_to_response(
     event: Event,
     response: HttpResponseBuilder,
 ) -> std::result::Result<HttpResponse, actix_web::error::Error> {
@@ -79,40 +76,29 @@ pub async fn event_to_response(
 
 /// So that an actix-web handler may return an Event
 impl actix_web::Responder for Event {
-    type Error = actix_web::Error;
-    type Future = LocalBoxFuture<'static, std::result::Result<HttpResponse, Self::Error>>;
-
-    fn respond_to(self, _: &actix_web::HttpRequest) -> Self::Future {
-        async { HttpResponse::build(StatusCode::OK).event(self).await }.boxed_local()
+    fn respond_to(self, _: &HttpRequest) -> HttpResponse {
+        HttpResponse::build(StatusCode::OK).event(self).unwrap()
     }
 }
 
 /// Extension Trait for [`HttpResponseBuilder`] which acts as a wrapper for the function [`event_to_response()`].
 ///
 /// This trait is sealed and cannot be implemented for types outside of this crate.
-#[async_trait(?Send)]
 pub trait HttpResponseBuilderExt: private::Sealed {
     /// Fill this [`HttpResponseBuilder`] with an [`Event`].
-    async fn event(
-        self,
-        event: Event,
-    ) -> std::result::Result<HttpResponse, actix_web::error::Error>;
+    fn event(self, event: Event) -> std::result::Result<HttpResponse, actix_web::Error>;
 }
 
-#[async_trait(?Send)]
 impl HttpResponseBuilderExt for HttpResponseBuilder {
-    async fn event(
-        self,
-        event: Event,
-    ) -> std::result::Result<HttpResponse, actix_web::error::Error> {
-        event_to_response(event, self).await
+    fn event(self, event: Event) -> std::result::Result<HttpResponse, actix_web::Error> {
+        event_to_response(event, self)
     }
 }
 
 // Sealing the HttpResponseBuilderExt
 mod private {
     pub trait Sealed {}
-    impl Sealed for actix_web::dev::HttpResponseBuilder {}
+    impl Sealed for actix_web::HttpResponseBuilder {}
 }
 
 #[cfg(test)]
@@ -122,7 +108,6 @@ mod tests {
     use crate::{EventBuilder, EventBuilderV10};
     use actix_web::http::StatusCode;
     use actix_web::test;
-    use futures::TryStreamExt;
     use serde_json::json;
 
     #[actix_rt::test]
@@ -137,7 +122,6 @@ mod tests {
 
         let resp = HttpResponseBuilder::new(StatusCode::OK)
             .event(input)
-            .await
             .unwrap();
 
         assert_eq!(
@@ -179,9 +163,8 @@ mod tests {
             .build()
             .unwrap();
 
-        let mut resp = HttpResponseBuilder::new(StatusCode::OK)
+        let resp = HttpResponseBuilder::new(StatusCode::OK)
             .event(input)
-            .await
             .unwrap();
 
         assert_eq!(
@@ -217,9 +200,7 @@ mod tests {
             "10"
         );
 
-        let bytes = test::load_stream(resp.take_body().into_stream())
-            .await
-            .unwrap();
+        let bytes = test::load_body(resp.into_body()).await.unwrap();
         assert_eq!(j.to_string().as_bytes(), bytes.as_ref())
     }
 }

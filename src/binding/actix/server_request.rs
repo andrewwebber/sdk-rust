@@ -170,11 +170,11 @@ mod tests {
             .unwrap();
 
         let (req, payload) = test::TestRequest::post()
-            .header("ce-specversion", "1.0")
-            .header("ce-id", "0001")
-            .header("ce-type", "example.test")
-            .header("ce-source", "http://localhost/")
-            .header("ce-someint", "10")
+            .insert_header(("ce-specversion", "1.0"))
+            .insert_header(("ce-id", "0001"))
+            .insert_header(("ce-type", "example.test"))
+            .insert_header(("ce-source", "http://localhost/"))
+            .insert_header(("ce-someint", "10"))
             .to_http_parts();
 
         let resp = req.to_event(web::Payload(payload)).await.unwrap();
@@ -195,12 +195,12 @@ mod tests {
             .unwrap();
 
         let (req, payload) = test::TestRequest::post()
-            .header("ce-specversion", "1.0")
-            .header("ce-id", "0001")
-            .header("ce-type", "example.test")
-            .header("ce-source", "http://localhost")
-            .header("ce-someint", "10")
-            .header("content-type", "application/json")
+            .insert_header(("ce-specversion", "1.0"))
+            .insert_header(("ce-id", "0001"))
+            .insert_header(("ce-type", "example.test"))
+            .insert_header(("ce-source", "http://localhost"))
+            .insert_header(("ce-someint", "10"))
+            .insert_header(("content-type", "application/json"))
             .set_json(&j)
             .to_http_parts();
 
@@ -232,7 +232,7 @@ mod tests {
             .unwrap();
 
         let (req, payload) = test::TestRequest::post()
-            .header("content-type", "application/cloudevents+json")
+            .insert_header(("content-type", "application/cloudevents+json"))
             .set_payload(bytes)
             .to_http_parts();
 
