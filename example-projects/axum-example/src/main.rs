@@ -4,8 +4,6 @@ use axum::{
 };
 use cloudevents::Event;
 use http::StatusCode;
-use std::net::SocketAddr;
-use tower_http::trace::TraceLayer;
 
 fn echo_app() -> Router {
     Router::new()
@@ -13,26 +11,17 @@ fn echo_app() -> Router {
         .route(
             "/",
             post(|event: Event| async move {
-                tracing::debug!("received cloudevent {}", &event);
+                println!("received cloudevent {}", &event);
                 (StatusCode::OK, event)
             }),
         )
-        .layer(TraceLayer::new_for_http())
 }
 
 #[tokio::main]
 async fn main() {
-    if std::env::var("RUST_LOG").is_err() {
-        std::env::set_var("RUST_LOG", "axum_example=debug,tower_http=debug")
-    }
-    tracing_subscriber::fmt::init();
-    let service = echo_app();
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
-    tracing::debug!("listening on {}", addr);
-    axum::Server::bind(&addr)
-        .serve(service.into_make_service())
-        .await
-        .unwrap();
+    let app = echo_app();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
 
 #[cfg(test)]
@@ -45,17 +34,11 @@ mod tests {
         http::{self, Request},
     };
     use chrono::Utc;
-    use hyper;
     use serde_json::json;
     use tower::ServiceExt; // for `app.oneshot()`
 
     #[tokio::test]
     async fn axum_mod_test() {
-        if std::env::var("RUST_LOG").is_err() {
-            std::env::set_var("RUST_LOG", "axum_example=debug,tower_http=debug")
-        }
-        tracing_subscriber::fmt::init();
-
         let app = echo_app();
         let time = Utc::now();
         let j = json!({"hello": "world"});
@@ -106,7 +89,7 @@ mod tests {
         );
 
         let (_, body) = resp.into_parts();
-        let body = hyper::body::to_bytes(body).await.unwrap();
+        let body = axum::body::to_bytes(body, usize::MAX).await.unwrap();
 
         assert_eq!(j.to_string().as_bytes(), body);
     }

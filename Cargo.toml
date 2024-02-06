@@ -8,9 +8,7 @@ description = "CloudEvents official Rust SDK"
 documentation = "https://docs.rs/cloudevents-sdk"
 readme = "README.md"
 repository = "https://github.com/cloudevents/sdk-rust"
-exclude = [
-    ".github/*"
-]
+exclude = [".github/*"]
 categories = ["web-programming", "encoding", "data-structures"]
 
 # Enable all features when building on docs.rs to show feature gated bindings
@@ -22,12 +20,20 @@ rustdoc-args = ["--cfg", "docsrs"]
 name = "cloudevents"
 
 [features]
-http-binding = ["async-trait", "bytes", "futures", "http"]
+http-binding = ["async-trait", "bytes", "futures", "http", "http-body-util"]
 actix = ["actix-web", "actix-http", "async-trait", "bytes", "futures", "http"]
 reqwest = ["reqwest-lib", "async-trait", "bytes", "http", "uuid/js"]
 rdkafka = ["rdkafka-lib", "bytes", "futures"]
 warp = ["warp-lib", "bytes", "http", "hyper"]
-axum = ["bytes", "http", "hyper", "axum-lib", "http-body", "async-trait"]
+axum = [
+  "bytes",
+  "http",
+  "hyper",
+  "axum-lib",
+  "http-body",
+  "async-trait",
+  "http-body-util",
+]
 poem = ["bytes", "http", "poem-lib", "hyper", "async-trait"]
 nats = ["nats-lib"]
 
@@ -37,7 +43,7 @@ serde_json = "^1.0"
 chrono = { version = "^0.4", features = ["serde"] }
 delegate-attr = "^0.2"
 base64 = "^0.12"
-url = { version = "^2.1", features = ["serde"] }
+url = { version = "2", features = ["serde"] }
 snafu = "^0.6"
 bitflags = "^1.2"
 uuid = { version = "1", features = ["v4"] }
@@ -45,16 +51,21 @@ uuid = { version = "1", features = ["v4"] }
 # runtime optional deps
 actix-web = { version = "4", optional = true }
 actix-http = { version = "3", optional = true }
-reqwest-lib = { version = "^0.11", default-features = false, features = ["rustls-tls"], optional = true, package = "reqwest" }
-rdkafka-lib = { version = "^0.29", features = ["cmake-build"], optional = true, package = "rdkafka" }
+reqwest-lib = { version = "^0.11", default-features = false, features = [
+  "rustls-tls",
+], optional = true, package = "reqwest" }
+rdkafka-lib = { version = "^0.29", features = [
+  "cmake-build",
+], optional = true, package = "rdkafka" }
 warp-lib = { version = "^0.3", optional = true, package = "warp" }
 async-trait = { version = "^0.1.33", optional = true }
-bytes = { version = "^1.0", optional = true }
+bytes = { version = "1", optional = true }
 futures = { version = "^0.3", optional = true }
-http = { version = "0.2", optional = true }
-hyper = { version = "^0.14", optional = true }
-axum-lib = { version = "^0.6", optional = true, package="axum"}
-http-body = { version = "^0.4", optional = true }
+http = { version = "1", optional = true }
+hyper = { version = "1", optional = true }
+http-body-util = { version = "0.1", optional = true }
+axum-lib = { version = "^0.7", optional = true, package = "axum" }
+http-body = { version = "1", optional = true }
 poem-lib = { version = "=1.2.34", optional = true, package = "poem" }
 nats-lib = { version = "0.21.0", optional = true, package = "nats" }
 

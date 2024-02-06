@@ -80,7 +80,7 @@ mod tests {
     use axum_lib as axum;
 
     use axum::{
-        body::Body,
+        body::{to_bytes, Body},
         http::{self, Request, StatusCode},
         routing::{get, post},
         Router,
@@ -155,7 +155,7 @@ mod tests {
         );
 
         let (_, body) = resp.into_parts();
-        let body = hyper::body::to_bytes(body).await.unwrap();
+        let body = to_bytes(body, usize::MAX).await.unwrap();
 
         assert_eq!(j.to_string().as_bytes(), body);
     }

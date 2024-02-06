@@ -1,33 +1,27 @@
 use axum_lib as axum;
 
 use async_trait::async_trait;
-use axum::extract::FromRequest;
-use axum::http::Request;
-use http::request::Parts;
-use http::StatusCode;
-use http_body::Body;
-use hyper::body;
+use axum::http::StatusCode;
+use axum::{
+    body::to_bytes,
+    extract::{FromRequest, Request},
+    http::request::Parts,
+};
 
-use crate::binding::http::to_event;
-use crate::event::Event;
-
-type BoxError = Box<dyn std::error::Error + Send + Sync>;
+use crate::{binding::http::to_event, event::Event};
 
 #[async_trait]
-impl<S, B> FromRequest<S, B> for Event
+impl<S> FromRequest<S> for Event
 where
-    B: Body + Send + 'static,
-    B::Data: Send,
-    B::Error: Into<BoxError>,
     S: Send + Sync,
 {
     type Rejection = (StatusCode, String);
 
-    async fn from_request(req: Request<B>, _state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request(req: Request, _state: &S) -> Result<Self, Self::Rejection> {
         let (Parts { headers, .. }, req_body) = req.into_parts();
-        let buf = body::to_bytes(req_body)
+        let buf = to_bytes(req_body, usize::MAX)
             .await
-            .map_err(|e| (StatusCode::BAD_REQUEST, format!("{}", e.into())))?
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("{}", e)))?
             .to_vec();
 
         to_event(&headers, buf).map_err(|e| (StatusCode::BAD_REQUEST, format!("{}", e)))
